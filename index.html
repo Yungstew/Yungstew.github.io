@@ -400,11 +400,15 @@
 </main>
 
 <footer>
-  <p><a href="/cdn-cgi/l/email-protection#4e3d3a2b396027203f3b273c272b3d0e29232f2722602d2123" style="color:var(--muted);text-decoration:none;letter-spacing:0.08em;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'"><span class="__cf_email__" data-cfemail="b8cbccddcf96d1d6c9cdd1cad1ddcbf8dfd5d9d1d496dbd7d5">[email&#160;protected]</span></a></p>
+  <p id="contact-link"></p>
   <span class="footer-accent">STEW.</span>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
+  const em = ['stew.inquiries', 'gmail.com'].join('@');
+  const cl = document.getElementById('contact-link');
+  cl.innerHTML = `<a href="mailto:${em}" style="color:var(--muted);text-decoration:none;letter-spacing:0.08em;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${em}</a>`;
+
   const API_KEY = 'AIzaSyDGsDHtvhG_ZMdbDDprxaOT3XzNMdT67_g';
   const VIDEO_IDS = [
     '5PSYAfd0hf0',
