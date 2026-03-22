@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stew — Video Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1e1e1e;
+      --accent: #e8ff47;
+      --accent-dim: rgba(232, 255, 71, 0.08);
+      --text: #f0f0f0;
+      --muted: #666;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-weight: 300;
+      line-height: 1.6;
+      min-height: 100vh;
+      cursor: crosshair;
+    }
+
+    /* noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 4rem 6vw 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .wordmark {
+      font-family: var(--font-display);
+      font-size: clamp(4rem, 10vw, 9rem);
+      letter-spacing: 0.02em;
+      line-height: 0.9;
+      color: var(--text);
+    }
+
+    .wordmark span {
+      color: var(--accent);
+    }
+
+    .tagline {
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 0.4rem;
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      padding: 1.4rem 0 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-value.loading {
+      color: var(--muted);
+      font-size: 1.4rem;
+    }
+
+    .divider {
+      width: 1px;
+      height: 2.5rem;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* pulse dot */
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .live-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.7); }
+    }
+
+    /* ── MAIN ── */
+    main {
+      position: relative;
+      z-index: 1;
+      padding: 4rem 6vw;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    /* ── VIDEO GRID ── */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .video-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      transition: border-color 0.25s, transform 0.25s;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .video-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      background: #0d0d0d;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .thumb-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease, opacity 0.3s;
+    }
+
+    .video-card:hover .thumb-wrap img {
+      transform: scale(1.04);
+    }
+
+    .play-btn {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0);
+      transition: background 0.25s;
+    }
+
+    .video-card:hover .play-btn {
+      background: rgba(0,0,0,0.35);
+    }
+
+    .play-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.7);
+      transition: opacity 0.25s, transform 0.25s;
+    }
+
+    .play-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: #0a0a0a;
+      margin-left: 3px;
+    }
+
+    .video-card:hover .play-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* iframe overlay */
+    .thumb-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+
+    .thumb-wrap.playing img,
+    .thumb-wrap.playing .play-btn {
+      display: none;
+    }
+
+    .thumb-wrap.playing iframe {
+      display: block;
+    }
+
+    .card-info {
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .card-title {
+      font-size: 0.82rem;
+      color: var(--text);
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .card-views {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      flex-shrink: 0;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 6vw;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    footer p {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .footer-accent {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+
+    /* stagger animation delays */
+    .video-card:nth-child(1)  { animation-delay: 0.05s; }
+    .video-card:nth-child(2)  { animation-delay: 0.10s; }
+    .video-card:nth-child(3)  { animation-delay: 0.15s; }
+    .video-card:nth-child(4)  { animation-delay: 0.20s; }
+    .video-card:nth-child(5)  { animation-delay: 0.25s; }
+    .video-card:nth-child(6)  { animation-delay: 0.30s; }
+    .video-card:nth-child(7)  { animation-delay: 0.35s; }
+    .video-card:nth-child(8)  { animation-delay: 0.40s; }
+    .video-card:nth-child(9)  { animation-delay: 0.45s; }
+    .video-card:nth-child(10) { animation-delay: 0.50s; }
+
+    #show-more-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      padding: 0.75rem 2.5rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #show-more-btn:hover {
+      background: var(--accent);
+      color: #0a0a0a;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 2.5rem 5vw 2rem; }
+      main { padding: 2.5rem 5vw; }
+      .video-grid { grid-template-columns: 1fr; }
+      .stats-bar { gap: 1.2rem; }
+      .live-dot { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1 class="wordmark">STEW<span>.</span></h1>
+    <p class="tagline">Video Editor &nbsp;/&nbsp; Content Creator</p>
+  </div>
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-label">Total Views</span>
+      <span class="stat-value loading" id="total-views">—</span>
+    </div>
+    <div class="divider"></div>
+    <div class="stat">
+      <span class="stat-label">Videos</span>
+      <span class="stat-value" id="video-count">11</span>
+    </div>
+    <div class="divider"></div>
+    <div class="stat">
+      <span class="stat-label">Total Likes</span>
+      <span class="stat-value loading" id="total-likes">—</span>
+    </div>
+    <span class="live-dot">Live stats</span>
+  </div>
+</header>
+
+<main>
+  <p class="section-label">Selected Work</p>
+  <div class="video-grid" id="video-grid"></div>
+  <div id="show-more-wrap" style="display:flex;justify-content:center;margin-top:2.5rem;"></div>
+</main>
+
+<footer>
+  <p id="contact-link"></p>
+  <span class="footer-accent">STEW.</span>
+</footer>
+
+<script>
+  const em = ['stew.inquiries', 'gmail.com'].join('@');
+  const cl = document.getElementById('contact-link');
+  cl.innerHTML = `<a href="mailto:${em}" style="color:var(--muted);text-decoration:none;letter-spacing:0.08em;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${em}</a>`;
+
+  const API_KEY = 'AIzaSyDGsDHtvhG_ZMdbDDprxaOT3XzNMdT67_g';
+  const VIDEO_IDS = [
+    '5PSYAfd0hf0',
+    '_wlIOtiy1aY',
+    'RJAEWnQCITk',
+    'NSQWtS72c5s',
+    'yfXGEEPZRBE',
+    'VFhKF3O2GyY',
+    '_ETAVuUgaoU',
+    'j5PPCbpt-4A',
+    '0_rg6Kx1mMQ',
+    '6Fg8MYdGNpk',
+    'apkj6yQ13N0'
+  ];
+
+  function formatViews(n) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  const PAGE_SIZE = 12;
+
+  function buildCards(videos) {
+    const grid = document.getElementById('video-grid');
+    let shown = 0;
+
+    function renderBatch() {
+      const batch = videos.slice(shown, shown + PAGE_SIZE);
+      batch.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.innerHTML = `
+          <div class="thumb-wrap" id="wrap-${v.id}">
+            <img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="${v.title}" loading="lazy" />
+            <div class="play-btn">
+              <div class="play-icon">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+            </div>
+            <iframe
+              id="iframe-${v.id}"
+              src=""
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+          </div>
+          <div class="card-info">
+            <span class="card-title">${v.title}</span>
+            <span class="card-views">${formatViews(v.views)}</span>
+          </div>
+        `;
+        card.querySelector('.thumb-wrap').addEventListener('click', () => {
+          const wrap = document.getElementById(`wrap-${v.id}`);
+          const iframe = document.getElementById(`iframe-${v.id}`);
+          if (!wrap.classList.contains('playing')) {
+            iframe.src = `https://www.youtube.com/embed/${v.id}?autoplay=1`;
+            wrap.classList.add('playing');
+          }
+        });
+        grid.appendChild(card);
+      });
+      shown += batch.length;
+
+      const existing = document.getElementById('show-more-btn');
+      if (existing) existing.remove();
+
+      if (shown < videos.length) {
+        const remaining = videos.length - shown;
+        const btn = document.createElement('button');
+        btn.id = 'show-more-btn';
+        btn.textContent = `Show More (${remaining} left)`;
+        btn.onclick = renderBatch;
+        document.getElementById('show-more-wrap').appendChild(btn);
+      }
+    }
+
+    renderBatch();
+  }
+
+  function showError(msg) {
+    document.getElementById('total-views').textContent = 'ERR';
+    document.getElementById('total-likes').textContent = 'ERR';
+    const grid = document.getElementById('video-grid');
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:2rem;color:var(--accent);font-size:0.8rem;letter-spacing:0.08em;border:1px solid var(--border);border-radius:2px;">API ERROR: ${msg}</div>`;
+  }
+
+  async function fetchData() {
+    const ids = VIDEO_IDS.join(',');
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${API_KEY}`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.error) { showError(data.error.message); return; }
+      if (!data.items || data.items.length === 0) { showError('No videos returned. Check your video IDs.'); return; }
+
+      let totalViews = 0;
+      let totalLikes = 0;
+      const videos = data.items.map(item => {
+        const views = parseInt(item.statistics.viewCount || '0', 10);
+        const likes = parseInt(item.statistics.likeCount || '0', 10);
+        totalViews += views;
+        totalLikes += likes;
+        return { id: item.id, title: item.snippet.title, views };
+      });
+
+      videos.sort((a, b) => b.views - a.views);
+      buildCards(videos);
+
+      const tvEl = document.getElementById('total-views');
+      tvEl.classList.remove('loading');
+      tvEl.textContent = formatViews(totalViews);
+      document.getElementById('video-count').textContent = videos.length;
+
+      const tlEl = document.getElementById('to
