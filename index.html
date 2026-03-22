@@ -340,6 +340,24 @@
     .video-card:nth-child(9)  { animation-delay: 0.45s; }
     .video-card:nth-child(10) { animation-delay: 0.50s; }
 
+    #show-more-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      padding: 0.75rem 2.5rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #show-more-btn:hover {
+      background: var(--accent);
+      color: #0a0a0a;
+    }
+
     @media (max-width: 600px) {
       header { padding: 2.5rem 5vw 2rem; }
       main { padding: 2.5rem 5vw; }
@@ -378,14 +396,15 @@
 <main>
   <p class="section-label">Selected Work</p>
   <div class="video-grid" id="video-grid"></div>
+  <div id="show-more-wrap" style="display:flex;justify-content:center;margin-top:2.5rem;"></div>
 </main>
 
 <footer>
-  <p>Built for work inquiries &mdash; reach out anytime</p>
+  <p><a href="/cdn-cgi/l/email-protection#4e3d3a2b396027203f3b273c272b3d0e29232f2722602d2123" style="color:var(--muted);text-decoration:none;letter-spacing:0.08em;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'"><span class="__cf_email__" data-cfemail="b8cbccddcf96d1d6c9cdd1cad1ddcbf8dfd5d9d1d496dbd7d5">[email&#160;protected]</span></a></p>
   <span class="footer-accent">STEW.</span>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   const API_KEY = 'AIzaSyDGsDHtvhG_ZMdbDDprxaOT3XzNMdT67_g';
   const VIDEO_IDS = [
     '5PSYAfd0hf0',
@@ -407,43 +426,63 @@
     return n.toLocaleString();
   }
 
+  const PAGE_SIZE = 12;
+
   function buildCards(videos) {
     const grid = document.getElementById('video-grid');
-    videos.forEach(v => {
-      const card = document.createElement('div');
-      card.className = 'video-card';
-      card.innerHTML = `
-        <div class="thumb-wrap" id="wrap-${v.id}">
-          <img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="${v.title}" loading="lazy" />
-          <div class="play-btn">
-            <div class="play-icon">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    let shown = 0;
+
+    function renderBatch() {
+      const batch = videos.slice(shown, shown + PAGE_SIZE);
+      batch.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.innerHTML = `
+          <div class="thumb-wrap" id="wrap-${v.id}">
+            <img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="${v.title}" loading="lazy" />
+            <div class="play-btn">
+              <div class="play-icon">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
             </div>
+            <iframe
+              id="iframe-${v.id}"
+              src=""
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
           </div>
-          <iframe
-            id="iframe-${v.id}"
-            src=""
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-          ></iframe>
-        </div>
-        <div class="card-info">
-          <span class="card-title">${v.title}</span>
-          <span class="card-views">${formatViews(v.views)}</span>
-        </div>
-      `;
-
-      card.querySelector('.thumb-wrap').addEventListener('click', () => {
-        const wrap = document.getElementById(`wrap-${v.id}`);
-        const iframe = document.getElementById(`iframe-${v.id}`);
-        if (!wrap.classList.contains('playing')) {
-          iframe.src = `https://www.youtube.com/embed/${v.id}?autoplay=1`;
-          wrap.classList.add('playing');
-        }
+          <div class="card-info">
+            <span class="card-title">${v.title}</span>
+            <span class="card-views">${formatViews(v.views)}</span>
+          </div>
+        `;
+        card.querySelector('.thumb-wrap').addEventListener('click', () => {
+          const wrap = document.getElementById(`wrap-${v.id}`);
+          const iframe = document.getElementById(`iframe-${v.id}`);
+          if (!wrap.classList.contains('playing')) {
+            iframe.src = `https://www.youtube.com/embed/${v.id}?autoplay=1`;
+            wrap.classList.add('playing');
+          }
+        });
+        grid.appendChild(card);
       });
+      shown += batch.length;
 
-      grid.appendChild(card);
-    });
+      const existing = document.getElementById('show-more-btn');
+      if (existing) existing.remove();
+
+      if (shown < videos.length) {
+        const remaining = videos.length - shown;
+        const btn = document.createElement('button');
+        btn.id = 'show-more-btn';
+        btn.textContent = `Show More (${remaining} left)`;
+        btn.onclick = renderBatch;
+        document.getElementById('show-more-wrap').appendChild(btn);
+      }
+    }
+
+    renderBatch();
   }
 
   function showError(msg) {
@@ -473,6 +512,7 @@
         return { id: item.id, title: item.snippet.title, views };
       });
 
+      videos.sort((a, b) => b.views - a.views);
       buildCards(videos);
 
       const tvEl = document.getElementById('total-views');
@@ -480,16 +520,4 @@
       tvEl.textContent = formatViews(totalViews);
       document.getElementById('video-count').textContent = videos.length;
 
-      const tlEl = document.getElementById('total-likes');
-      tlEl.classList.remove('loading');
-      tlEl.textContent = formatViews(totalLikes);
-    } catch (err) {
-      showError(err.message);
-      console.error('YouTube API error:', err);
-    }
-  }
-
-  fetchData();
-</script>
-</body>
-</html>
+      const tlEl = document.getElementById('to
